@@ -38,6 +38,8 @@ from pysc2.run_configs import lib as run_configs_lib
 
 from s2clientprotocol import sc2api_pb2 as sc_pb
 
+import requests
+
 FLAGS = flags.FLAGS
 flags.DEFINE_bool("render", True, "Whether to render with pygame.")
 flags.DEFINE_bool("realtime", False, "Whether to run in realtime mode.")
@@ -79,6 +81,7 @@ flags.DEFINE_string("map", None, "Name of a map to use to play.")
 
 flags.DEFINE_string("map_path", None, "Override the map for this replay.")
 flags.DEFINE_string("replay", None, "Name of a replay to show.")
+flags.DEFINE_bool("verify", True, "Whether to verify the replay's server certificate.")
 
 
 def main(unused_argv):
@@ -89,8 +92,13 @@ def main(unused_argv):
   if (FLAGS.map and FLAGS.replay) or (not FLAGS.map and not FLAGS.replay):
     sys.exit("Must supply either a map or replay.")
 
-  if FLAGS.replay and not FLAGS.replay.lower().endswith("sc2replay"):
-    sys.exit("Replay must end in .SC2Replay.")
+  if FLAGS.replay:
+    if FLAGS.replay.lower().endswith("sc2replay"):
+      filetype = "file"
+    elif FLAGS.replay.lower().startswith("https:"):
+      filetype = "url"
+    else:
+      sys.exit("Replay must end in .SC2Replay or start with https:.")
 
   if FLAGS.realtime and FLAGS.replay:
     # TODO(tewalds): Support realtime in replays once the game supports it.
@@ -139,7 +147,17 @@ def main(unused_argv):
         player_name=FLAGS.user_name)
     version = None
   else:
-    replay_data = run_config.replay_data(FLAGS.replay)
+    if filetype == "url":
+      try:
+        req = requests.get(FLAGS.replay, verify=FLAGS.verify)
+        replay_data = req.content
+      except requests.exceptions.SSLError:
+        sys.exit("Failed to verify url server certificate. Try setting verify to false.")
+      except requests.exceptions.RequestException:
+        sys.exit("Failed to load replay from URL.")
+    elif filetype == "file":
+      replay_data = run_config.replay_data(FLAGS.replay)
+
     start_replay = sc_pb.RequestStartReplay(
         replay_data=replay_data,
         options=interface,
