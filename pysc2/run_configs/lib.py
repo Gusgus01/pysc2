@@ -21,6 +21,8 @@ import collections
 import datetime
 import os
 
+import requests
+
 from pysc2.lib import gfile
 
 
@@ -100,10 +102,14 @@ class RunConfig(object):
     """Return the absolute path to the replay, outside the sandbox."""
     return os.path.join(self.replay_dir, replay_path)
 
-  def replay_data(self, replay_path):
-    """Return the replay data given a path to the replay."""
-    with gfile.Open(self.abs_replay_path(replay_path), "rb") as f:
-      return f.read()
+  def replay_data(self, replay_path, verify=True):
+    """Return the replay data given a path or url to the replay."""
+    if replay_path.lower().endswith("sc2replay"):
+      with gfile.Open(self.abs_replay_path(replay_path), "rb") as f:
+        return f.read()
+    elif replay_path.lower().startswith("http"):
+        req = requests.get(replay_path, verify=verify)
+        return req.content
 
   def replay_paths(self, replay_dir):
     """A generator yielding the full path to the replays under `replay_dir`."""
@@ -179,4 +185,3 @@ class RunConfig(object):
       raise ValueError("Unknown game version: %s. Known versions: %s" % (
           game_version, sorted(versions.keys())))
     return versions[game_version]
-
