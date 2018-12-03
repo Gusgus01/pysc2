@@ -103,7 +103,7 @@ class StopwatchTest(absltest.TestCase):
       pass
 
     # Just make sure this doesn't have a divide by 0 for when the total is 0.
-    self.assertIn("zero", str(sw))
+    str(sw)
 
   @mock.patch.dict(os.environ, {"SC2_NO_STOPWATCH": "1"})
   def testDecoratorDisabled(self):
